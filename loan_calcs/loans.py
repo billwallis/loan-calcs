@@ -5,17 +5,58 @@ Different types of loans and ways to set them up.
 from __future__ import annotations
 
 import abc
+import decimal
+import functools
 import math
-from decimal import Decimal
-from typing import Self
+from collections.abc import Callable
+from typing import Any, Self
 
-from loan_calcs.data import (
-    InterestApplyMethod,
-    InterestRateType,
-    RepaymentType,
-    _calculate_amortised_rate,
-    _to_decimal,
-)
+from loan_calcs.data import InterestApplyMethod, InterestRateType, RepaymentType
+
+
+def _to_decimal(value: Any) -> decimal.Decimal:
+    """
+    Casting a float directly to a decimal messes with the precision so casting
+    to a string first is preferable.
+    """
+    # Purposely pass None into Decimal to generate the correct error
+    return (
+        decimal.Decimal(None) if value is None else decimal.Decimal(str(value))
+    )  # noqa
+
+
+def _decimal(round_to: int | None = None) -> Callable:
+    """
+    Decorator for the `_to_decimal` function with an optional precision to round
+    to.
+    """
+
+    def decorator(func: Callable) -> Callable:
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs) -> Any:
+            if round_to is None:
+                return _to_decimal(func(*args, **kwargs))
+            return _to_decimal(round(func(*args, **kwargs), round_to))
+
+        return wrapper
+
+    return decorator
+
+
+def _calculate_amortised_rate(
+    interest_rate: decimal.Decimal, n: decimal.Decimal
+) -> decimal.Decimal:
+    """
+    Calculate the amortised rate at `n`.
+
+    Let :math:`R` be the interest rate on a loan. Then the amortised rate is
+    given by :math:`(1 + R)^{n}`.
+    """
+    if n is None:
+        return decimal.Decimal(1)
+    if n < 0:
+        raise AssertionError("The amortise rate period has to be positive.")
+    return _to_decimal((decimal.Decimal(1) + interest_rate) ** n)
 
 
 # sourcery skip: snake-case-functions
@@ -49,10 +90,10 @@ class Loan(abc.ABC):
     def __init__(
         self,
         *,
-        loan_amount: Decimal,
-        interest_rate: Decimal,
-        total_repayments: Decimal,
-        fixed_periodic_repayment: Decimal,
+        loan_amount: decimal.Decimal,
+        interest_rate: decimal.Decimal,
+        total_repayments: decimal.Decimal,
+        fixed_periodic_repayment: decimal.Decimal,
         before_or_after: InterestApplyMethod = InterestApplyMethod.BEFORE,
         interest_rate_type: InterestRateType = InterestRateType.VARIABLE,
     ) -> None:
@@ -76,10 +117,10 @@ class Loan(abc.ABC):
     def build__all(
         cls,
         *,
-        loan_amount: Decimal | float,
-        interest_rate: Decimal | float,
-        total_repayments: Decimal | int,
-        fixed_periodic_repayment: Decimal | float,
+        loan_amount: decimal.Decimal | float,
+        interest_rate: decimal.Decimal | float,
+        total_repayments: decimal.Decimal | int,
+        fixed_periodic_repayment: decimal.Decimal | float,
         before_or_after: InterestApplyMethod = InterestApplyMethod.BEFORE,
         interest_rate_type: InterestRateType = InterestRateType.VARIABLE,
     ) -> Self:
@@ -99,10 +140,10 @@ class Loan(abc.ABC):
     def build(
         cls,
         *,
-        loan_amount: Decimal | float | None = None,
-        interest_rate: Decimal | float | None = None,
-        total_repayments: Decimal | int | None = None,
-        fixed_periodic_repayment: Decimal | float | None = None,
+        loan_amount: decimal.Decimal | float | None = None,
+        interest_rate: decimal.Decimal | float | None = None,
+        total_repayments: decimal.Decimal | int | None = None,
+        fixed_periodic_repayment: decimal.Decimal | float | None = None,
         before_or_after: InterestApplyMethod = InterestApplyMethod.BEFORE,
         interest_rate_type: InterestRateType = InterestRateType.VARIABLE,
     ) -> Self:
@@ -171,14 +212,14 @@ class Loan(abc.ABC):
         )
 
     @property
-    def total_amortised_rate(self) -> Decimal:
+    def total_amortised_rate(self) -> decimal.Decimal:
         """
         Calculate the amortised rate at the complete term.
         """
         return _calculate_amortised_rate(self.interest_rate, self.total_repayments)
 
     @classmethod
-    def _build__calculate_loan_amount(cls, **kwargs) -> Decimal:
+    def _build__calculate_loan_amount(cls, **kwargs) -> decimal.Decimal:
         """
         Calculate the loan amount, :math:`L`.
         """
@@ -187,7 +228,7 @@ class Loan(abc.ABC):
         )
 
     @classmethod
-    def _build__calculate_interest_rate(cls, **kwargs) -> Decimal:
+    def _build__calculate_interest_rate(cls, **kwargs) -> decimal.Decimal:
         """
         Calculate the loan interest rate, :math:`R`.
         """
@@ -196,7 +237,7 @@ class Loan(abc.ABC):
         )
 
     @classmethod
-    def _build__calculate_fixed_periodic_repayment(cls, **kwargs) -> Decimal:
+    def _build__calculate_fixed_periodic_repayment(cls, **kwargs) -> decimal.Decimal:
         """
         Calculate the periodic repayment value, :math:`P`.
         """
@@ -205,7 +246,7 @@ class Loan(abc.ABC):
         )
 
     @classmethod
-    def _build__calculate_total_repayments(cls, **kwargs) -> Decimal:
+    def _build__calculate_total_repayments(cls, **kwargs) -> decimal.Decimal:
         """
         Calculate the total number of repayments, :math:`N`.
         """
@@ -214,26 +255,26 @@ class Loan(abc.ABC):
         )
 
     @abc.abstractmethod
-    def calculate_balance_at_period(self, period: int) -> Decimal:
+    def calculate_balance_at_period(self, period: int) -> decimal.Decimal:
         """
         Calculate the loan balance, :math:`B_{n}`, at the end of period
         :math:`n`.
         """
 
     @abc.abstractmethod
-    def calculate_repayment_principal_at_period(self, period: int) -> Decimal:
+    def calculate_repayment_principal_at_period(self, period: int) -> decimal.Decimal:
         """
         Calculate the principal part of the repayment due on period :math:`n`.
         """
 
     @abc.abstractmethod
-    def calculate_repayment_interest_at_period(self, period: int) -> Decimal:
+    def calculate_repayment_interest_at_period(self, period: int) -> decimal.Decimal:
         """
         Calculate the interest part of the repayment due on period :math:`n`.
         """
 
     @abc.abstractmethod
-    def calculate_cumulative_interest(self, period: int) -> Decimal:
+    def calculate_cumulative_interest(self, period: int) -> decimal.Decimal:
         """
         Calculate the total of the interest that has been accrued (including the
         interest that has been paid off) at the end of period :math:`n`.
@@ -257,12 +298,12 @@ class FixedRepaymentLoan(Loan):
     @staticmethod
     # @_decimal(round_to=2)
     def _build__calculate_loan_amount(
-        interest_rate: Decimal,
-        fixed_periodic_repayment: Decimal,
-        total_amortised_rate: Decimal,
+        interest_rate: decimal.Decimal,
+        fixed_periodic_repayment: decimal.Decimal,
+        total_amortised_rate: decimal.Decimal,
         before_or_after: InterestApplyMethod = InterestApplyMethod.BEFORE,
         **kwargs,  # To allow other arguments to be passed in without breaking the interface
-    ) -> Decimal:
+    ) -> decimal.Decimal:
         """
         Calculate the loan amount, :math:`L`.
 
@@ -278,14 +319,14 @@ class FixedRepaymentLoan(Loan):
         """
         return (
             fixed_periodic_repayment
-            * (interest_rate ** (before_or_after.value - Decimal(1)))
-            * (total_amortised_rate - Decimal(1))
+            * (interest_rate ** (before_or_after.value - decimal.Decimal(1)))
+            * (total_amortised_rate - decimal.Decimal(1))
             / total_amortised_rate
         )
 
     # @staticmethod
     # @_decimal(round_to=2)
-    def _build__calculate_interest_rate(self) -> Decimal:
+    def _build__calculate_interest_rate(self) -> decimal.Decimal:
         """
         Calculate the loan interest rate, :math:`R`.
         """
@@ -296,12 +337,12 @@ class FixedRepaymentLoan(Loan):
     @staticmethod
     # @_decimal(round_to=2)
     def _build__calculate_fixed_periodic_repayment(
-        loan_amount: Decimal,
-        interest_rate: Decimal,
-        total_amortised_rate: Decimal,
+        loan_amount: decimal.Decimal,
+        interest_rate: decimal.Decimal,
+        total_amortised_rate: decimal.Decimal,
         before_or_after: InterestApplyMethod = InterestApplyMethod.BEFORE,
         **kwargs,  # To allow other arguments to be passed in without breaking the interface
-    ) -> Decimal:
+    ) -> decimal.Decimal:
         """
         Calculate the period repayment (:math:`P`).
 
@@ -317,18 +358,18 @@ class FixedRepaymentLoan(Loan):
             P = \\frac{ LR^{1 - b}(1 + R)^{N} }{ (1 + R)^{N} - 1 }
         """
         return (
-            (interest_rate ** (Decimal(1) - before_or_after.value))
+            (interest_rate ** (decimal.Decimal(1) - before_or_after.value))
             * loan_amount
             * total_amortised_rate
-            / (total_amortised_rate - Decimal(1))
+            / (total_amortised_rate - decimal.Decimal(1))
         )
 
     @staticmethod
     # @_decimal()
     def _build__calculate_total_repayments(
-        loan_amount: Decimal,
-        fixed_periodic_repayment: Decimal,
-        interest_rate: Decimal,
+        loan_amount: decimal.Decimal,
+        fixed_periodic_repayment: decimal.Decimal,
+        interest_rate: decimal.Decimal,
         before_or_after: InterestApplyMethod = InterestApplyMethod.BEFORE,
         **kwargs,  # To allow other arguments to be passed in without breaking the interface
     ) -> int:
@@ -349,9 +390,10 @@ class FixedRepaymentLoan(Loan):
         The expression :math:`P - LR^{1 - b}` has to be strictly positive,
         otherwise there would be an unbounded number of repayments.
         """
-        denominator = Decimal(
+        denominator = decimal.Decimal(
             fixed_periodic_repayment
-            - loan_amount * interest_rate ** (Decimal(1) - before_or_after.value)
+            - loan_amount
+            * interest_rate ** (decimal.Decimal(1) - before_or_after.value)
         )
 
         if denominator <= 0:
@@ -363,11 +405,11 @@ class FixedRepaymentLoan(Loan):
 
         return math.ceil(
             math.log(fixed_periodic_repayment / denominator)
-            / math.log(interest_rate + Decimal(1))
+            / math.log(interest_rate + decimal.Decimal(1))
         )
 
     # @_decimal(round_to=2)
-    def calculate_balance_at_period(self, period: int) -> Decimal:
+    def calculate_balance_at_period(self, period: int) -> decimal.Decimal:
         """
         Calculate the loan balance, :math:`B_{n}`, at the end of period
         :math:`n`.
@@ -385,11 +427,11 @@ class FixedRepaymentLoan(Loan):
         return self.loan_amount * amortised_rate - (
             self.periodic_repayment
             * (self.interest_rate ** (self.before_or_after.value - 1))
-            * (amortised_rate - Decimal(1))
+            * (amortised_rate - decimal.Decimal(1))
         )
 
     # @_decimal(round_to=2)
-    def calculate_repayment_principal_at_period(self, period: int) -> Decimal:
+    def calculate_repayment_principal_at_period(self, period: int) -> decimal.Decimal:
         """
         Calculate the principal part of the repayment due on period :math:`n`.
 
@@ -411,7 +453,7 @@ class FixedRepaymentLoan(Loan):
         )
 
     # @_decimal(round_to=2)
-    def calculate_repayment_interest_at_period(self, period: int) -> Decimal:
+    def calculate_repayment_interest_at_period(self, period: int) -> decimal.Decimal:
         """
         Calculate the interest part of the repayment due on period :math:`n`.
 
@@ -431,7 +473,7 @@ class FixedRepaymentLoan(Loan):
         return self.calculate_balance_at_period(period=period - 1) * self.interest_rate
 
     # @_decimal(round_to=2)
-    def calculate_cumulative_interest(self, period: int) -> Decimal:
+    def calculate_cumulative_interest(self, period: int) -> decimal.Decimal:
         """
         Calculate the cumulative interest accrued at the end of period
         :math:`n`.
@@ -466,8 +508,8 @@ class FixedPrincipalLoan(Loan):
     @property
     def principal_repayment(
         self,
-        custom_periodic_repayment: Decimal | None = None,
-    ) -> Decimal:
+        custom_periodic_repayment: decimal.Decimal | None = None,
+    ) -> decimal.Decimal:
         """
         Calculate the principal component of the period repayment.
 
@@ -493,10 +535,10 @@ class FixedPrincipalLoan(Loan):
     # @_decimal(round_to=2)
     def _build__calculate_loan_amount(
         total_repayments: int,
-        fixed_periodic_repayment: Decimal,
-        custom_loan_amount: Decimal = None,
+        fixed_periodic_repayment: decimal.Decimal,
+        custom_loan_amount: decimal.Decimal = None,
         **kwargs,  # To allow other arguments to be passed in without breaking the interface
-    ) -> Decimal:
+    ) -> decimal.Decimal:
         """
         Calculate the loan amount, :math:`L`.
 
@@ -522,7 +564,7 @@ class FixedPrincipalLoan(Loan):
 
     # @staticmethod
     # @_decimal(round_to=2)
-    def _build__calculate_interest_rate(self) -> Decimal:
+    def _build__calculate_interest_rate(self) -> decimal.Decimal:
         """
         Calculate the loan interest rate, :math:`R`.
         """
@@ -533,11 +575,11 @@ class FixedPrincipalLoan(Loan):
     @staticmethod
     # @_decimal(round_to=2)
     def _build__calculate_fixed_periodic_repayment(
-        loan_amount: Decimal,
+        loan_amount: decimal.Decimal,
         total_repayments: int,
-        custom_periodic_repayment: Decimal = None,
+        custom_periodic_repayment: decimal.Decimal = None,
         **kwargs,  # To allow other arguments to be passed in without breaking the interface
-    ) -> Decimal:
+    ) -> decimal.Decimal:
         """
         Calculate the period repayment, :math:`P`.
 
@@ -575,8 +617,8 @@ class FixedPrincipalLoan(Loan):
     @staticmethod
     # @_decimal()
     def _build__calculate_total_repayments(
-        loan_amount: Decimal,
-        fixed_periodic_repayment: Decimal,  # This is actually the principal repayment
+        loan_amount: decimal.Decimal,
+        fixed_periodic_repayment: decimal.Decimal,  # This is actually the principal repayment
         custom_total_repayments: int = None,
         **kwargs,  # To allow other arguments to be passed in without breaking the interface
     ) -> int:
@@ -604,7 +646,7 @@ class FixedPrincipalLoan(Loan):
         return custom_total_repayments
 
     # @_decimal(round_to=2)
-    def calculate_balance_at_period(self, period: Decimal) -> Decimal:
+    def calculate_balance_at_period(self, period: decimal.Decimal) -> decimal.Decimal:
         """
         Calculate the loan balance, :math:`B_{n}`, at the end of period
         :math:`n`.
@@ -624,21 +666,21 @@ class FixedPrincipalLoan(Loan):
         return self.loan_amount - (period * self.principal_repayment)
 
     # @_decimal(round_to=2)
-    def calculate_repayment_principal_at_period(self, period: int) -> Decimal:
+    def calculate_repayment_principal_at_period(self, period: int) -> decimal.Decimal:
         """"""
         raise NotImplementedError(
             f"{type(self).__name__}.calculate_repayment_principal_at_period has not been defined"
         )
 
     # @_decimal(round_to=2)
-    def calculate_repayment_interest_at_period(self, period: int) -> Decimal:
+    def calculate_repayment_interest_at_period(self, period: int) -> decimal.Decimal:
         """"""
         raise NotImplementedError(
             f"{type(self).__name__}.calculate_repayment_interest_at_period has not been defined"
         )
 
     # @_decimal(round_to=2)
-    def calculate_cumulative_interest(self, period: int) -> Decimal:
+    def calculate_cumulative_interest(self, period: int) -> decimal.Decimal:
         """
         Calculate the cumulative interest accrued at the end of period
         :math:`n`.
@@ -670,10 +712,10 @@ class InterestOnlyLoan(Loan):
     @staticmethod
     # @_decimal(round_to=2)
     def _build__calculate_loan_amount(
-        fixed_periodic_repayment: Decimal,
-        interest_rate: Decimal,
+        fixed_periodic_repayment: decimal.Decimal,
+        interest_rate: decimal.Decimal,
         **kwargs,  # To allow other arguments to be passed in without breaking the interface
-    ) -> Decimal:
+    ) -> decimal.Decimal:
         """
         Calculate the loan amount, :math:`L`.
 
@@ -690,7 +732,7 @@ class InterestOnlyLoan(Loan):
 
     # @staticmethod
     # @_decimal(round_to=2)
-    def _build__calculate_interest_rate(self) -> Decimal:
+    def _build__calculate_interest_rate(self) -> decimal.Decimal:
         """
         Calculate the loan interest rate, :math:`R`.
         """
@@ -701,10 +743,10 @@ class InterestOnlyLoan(Loan):
     @staticmethod
     # @_decimal(round_to=2)
     def _build__calculate_fixed_periodic_repayment(
-        loan_amount: Decimal,
-        interest_rate: Decimal,
+        loan_amount: decimal.Decimal,
+        interest_rate: decimal.Decimal,
         **kwargs,  # To allow other arguments to be passed in without breaking the interface
-    ) -> Decimal:
+    ) -> decimal.Decimal:
         """
         Calculate the period repayment, :math:`P`.
 
@@ -743,7 +785,7 @@ class InterestOnlyLoan(Loan):
         return total_repayments
 
     # @_decimal(round_to=2)
-    def calculate_balance_at_period(self, period: Decimal) -> Decimal:
+    def calculate_balance_at_period(self, period: decimal.Decimal) -> decimal.Decimal:
         """
         Calculate the loan balance, :math:`B_{n}`, at the end of period
         :math:`n`.
@@ -757,24 +799,26 @@ class InterestOnlyLoan(Loan):
 
             B_{n} = 0,  n = N
         """
-        return Decimal(0) if period == self.total_repayments else self.loan_amount
+        return (
+            decimal.Decimal(0) if period == self.total_repayments else self.loan_amount
+        )
 
     # @_decimal(round_to=2)
-    def calculate_repayment_principal_at_period(self, period: int) -> Decimal:
+    def calculate_repayment_principal_at_period(self, period: int) -> decimal.Decimal:
         """"""
         raise NotImplementedError(
             f"{type(self).__name__}.calculate_repayment_principal_at_period has not been defined"
         )
 
     # @_decimal(round_to=2)
-    def calculate_repayment_interest_at_period(self, period: int) -> Decimal:
+    def calculate_repayment_interest_at_period(self, period: int) -> decimal.Decimal:
         """"""
         raise NotImplementedError(
             f"{type(self).__name__}.calculate_repayment_interest_at_period has not been defined"
         )
 
     # @_decimal(round_to=2)
-    def calculate_cumulative_interest(self, period: int) -> Decimal:
+    def calculate_cumulative_interest(self, period: int) -> decimal.Decimal:
         """
         Calculate the cumulative interest accrued at the end of period
         :math:`n`.

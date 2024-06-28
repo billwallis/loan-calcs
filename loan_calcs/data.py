@@ -5,10 +5,6 @@ All handy enums and module functions that can be used throughout the package.
 from __future__ import annotations
 
 import enum
-import functools
-from collections.abc import Callable
-from decimal import Decimal
-from typing import Any
 
 
 class RepaymentInterval(enum.Enum):
@@ -76,44 +72,3 @@ class InterestApplyMethod(enum.Enum):
 
     BEFORE = 0
     AFTER = 1
-
-
-def _to_decimal(value: Any) -> Decimal:
-    """
-    Casting a float directly to a decimal messes with the precision so casting
-    to a string first is preferable.
-    """
-    # Purposely pass None into Decimal to generate the correct error
-    return Decimal(None) if value is None else Decimal(str(value))  # noqa
-
-
-def _decimal(round_to: int | None = None) -> Callable:
-    """
-    Decorator for the `_to_decimal` function with an optional precision to round
-    to.
-    """
-
-    def decorator(func: Callable) -> Callable:
-        @functools.wraps(func)
-        def wrapper(*args, **kwargs) -> Any:
-            if round_to is None:
-                return _to_decimal(func(*args, **kwargs))
-            return _to_decimal(round(func(*args, **kwargs), round_to))
-
-        return wrapper
-
-    return decorator
-
-
-def _calculate_amortised_rate(interest_rate: Decimal, n: Decimal) -> Decimal:
-    """
-    Calculate the amortised rate at `n`.
-
-    Let :math:`R` be the interest rate on a loan. Then the amortised rate is
-    given by :math:`(1 + R)^{n}`.
-    """
-    if n is None:
-        return Decimal(1)
-    if n < 0:
-        raise AssertionError("The amortise rate period has to be positive.")
-    return _to_decimal((Decimal(1) + interest_rate) ** n)
