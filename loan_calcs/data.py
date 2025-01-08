@@ -84,7 +84,7 @@ def _to_decimal(value: Any) -> Decimal:
     to a string first is preferable.
     """
     # Purposely pass None into Decimal to generate the correct error
-    return Decimal(None) if value is None else Decimal(str(value))  # noqa
+    return Decimal(None) if value is None else Decimal(str(value))
 
 
 def _decimal(round_to: int | None = None) -> Callable:
