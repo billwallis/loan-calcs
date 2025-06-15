@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "loan-calcs"
 version = "0.0.0"
 description = "Library for common loan calculations."
-authors = [{name = "Bilbottom"}]
+authors = [{name = "billwallis"}]
 readme = "README.md"
 requires-python = ">=3.11"
 dynamic = ["dependencies"]
