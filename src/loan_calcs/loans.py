@@ -7,7 +7,7 @@ from __future__ import annotations
 import abc
 import math
 from decimal import Decimal
-from typing import Self
+from typing import Any, Self
 
 from loan_calcs.data import (
     InterestApplyMethod,
@@ -147,28 +147,28 @@ class Loan(abc.ABC):
             raise ValueError("No validation for all not None arguments yet.")
 
         if loan_amount is None:
-            assert None not in (
+            assert None not in (  # noqa: S101
                 interest_rate,
                 total_repayments,
                 fixed_periodic_repayment,
             )
             loan_amount = cls._build__calculate_loan_amount(**kwargs)
         elif interest_rate is None:
-            assert None not in (
+            assert None not in (  # noqa: S101
                 loan_amount,
                 total_repayments,
                 fixed_periodic_repayment,
             )
             interest_rate = cls._build__calculate_interest_rate(**kwargs)
         elif total_repayments is None:
-            assert None not in (
+            assert None not in (  # noqa: S101
                 loan_amount,
                 interest_rate,
                 fixed_periodic_repayment,
             )
             total_repayments = cls._build__calculate_total_repayments(**kwargs)
         elif fixed_periodic_repayment is None:
-            assert None not in (loan_amount, interest_rate, total_repayments)
+            assert None not in (loan_amount, interest_rate, total_repayments)  # noqa: S101
             fixed_periodic_repayment = (
                 cls._build__calculate_fixed_periodic_repayment(**kwargs)
             )
@@ -194,7 +194,7 @@ class Loan(abc.ABC):
         )
 
     @classmethod
-    def _build__calculate_loan_amount(cls, **kwargs) -> Decimal:
+    def _build__calculate_loan_amount(cls, **kwargs: Any) -> Decimal:
         """
         Calculate the loan amount, :math:`L`.
         """
@@ -203,7 +203,7 @@ class Loan(abc.ABC):
         )
 
     @classmethod
-    def _build__calculate_interest_rate(cls, **kwargs) -> Decimal:
+    def _build__calculate_interest_rate(cls, **kwargs: Any) -> Decimal:
         """
         Calculate the loan interest rate, :math:`R`.
         """
@@ -212,7 +212,9 @@ class Loan(abc.ABC):
         )
 
     @classmethod
-    def _build__calculate_fixed_periodic_repayment(cls, **kwargs) -> Decimal:
+    def _build__calculate_fixed_periodic_repayment(
+        cls, **kwargs: Any
+    ) -> Decimal:
         """
         Calculate the periodic repayment value, :math:`P`.
         """
@@ -221,7 +223,7 @@ class Loan(abc.ABC):
         )
 
     @classmethod
-    def _build__calculate_total_repayments(cls, **kwargs) -> Decimal:
+    def _build__calculate_total_repayments(cls, **kwargs: Any) -> Decimal:
         """
         Calculate the total number of repayments, :math:`N`.
         """
@@ -277,7 +279,7 @@ class FixedRepaymentLoan(Loan):
         fixed_periodic_repayment: Decimal,
         total_amortised_rate: Decimal,
         before_or_after: InterestApplyMethod = InterestApplyMethod.BEFORE,
-        **kwargs,  # To allow other arguments to be passed in without breaking the interface
+        **kwargs: Any,  # To allow other arguments to be passed in without breaking the interface
     ) -> Decimal:
         """
         Calculate the loan amount, :math:`L`.
@@ -316,7 +318,7 @@ class FixedRepaymentLoan(Loan):
         interest_rate: Decimal,
         total_amortised_rate: Decimal,
         before_or_after: InterestApplyMethod = InterestApplyMethod.BEFORE,
-        **kwargs,  # To allow other arguments to be passed in without breaking the interface
+        **kwargs: Any,  # To allow other arguments to be passed in without breaking the interface
     ) -> Decimal:
         """
         Calculate the period repayment (:math:`P`).
@@ -346,7 +348,7 @@ class FixedRepaymentLoan(Loan):
         fixed_periodic_repayment: Decimal,
         interest_rate: Decimal,
         before_or_after: InterestApplyMethod = InterestApplyMethod.BEFORE,
-        **kwargs,  # To allow other arguments to be passed in without breaking the interface
+        **kwargs: Any,  # To allow other arguments to be passed in without breaking the interface
     ) -> int:
         """
         Calculate the total repayments, :math:`N`.
@@ -518,7 +520,7 @@ class FixedPrincipalLoan(Loan):
         total_repayments: int,
         fixed_periodic_repayment: Decimal,
         custom_loan_amount: Decimal | None = None,
-        **kwargs,  # To allow other arguments to be passed in without breaking the interface
+        **kwargs: Any,  # To allow other arguments to be passed in without breaking the interface
     ) -> Decimal:
         """
         Calculate the loan amount, :math:`L`.
@@ -559,7 +561,7 @@ class FixedPrincipalLoan(Loan):
         loan_amount: Decimal,
         total_repayments: int,
         custom_periodic_repayment: Decimal | None = None,
-        **kwargs,  # To allow other arguments to be passed in without breaking the interface
+        **kwargs: Any,  # To allow other arguments to be passed in without breaking the interface
     ) -> Decimal:
         """
         Calculate the period repayment, :math:`P`.
@@ -601,7 +603,7 @@ class FixedPrincipalLoan(Loan):
         loan_amount: Decimal,
         fixed_periodic_repayment: Decimal,  # This is actually the principal repayment
         custom_total_repayments: int | None = None,
-        **kwargs,  # To allow other arguments to be passed in without breaking the interface
+        **kwargs: Any,  # To allow other arguments to be passed in without breaking the interface
     ) -> int:
         """
         Calculate the total repayments, :math:`N`.
@@ -697,7 +699,7 @@ class InterestOnlyLoan(Loan):
     def _build__calculate_loan_amount(
         fixed_periodic_repayment: Decimal,
         interest_rate: Decimal,
-        **kwargs,  # To allow other arguments to be passed in without breaking the interface
+        **kwargs: Any,  # To allow other arguments to be passed in without breaking the interface
     ) -> Decimal:
         """
         Calculate the loan amount, :math:`L`.
@@ -728,7 +730,7 @@ class InterestOnlyLoan(Loan):
     def _build__calculate_fixed_periodic_repayment(
         loan_amount: Decimal,
         interest_rate: Decimal,
-        **kwargs,  # To allow other arguments to be passed in without breaking the interface
+        **kwargs: Any,  # To allow other arguments to be passed in without breaking the interface
     ) -> Decimal:
         """
         Calculate the period repayment, :math:`P`.
@@ -750,7 +752,7 @@ class InterestOnlyLoan(Loan):
     # @_decimal()
     def _build__calculate_total_repayments(
         total_repayments: int,
-        **kwargs,  # To allow other arguments to be passed in without breaking the interface
+        **kwargs: Any,  # To allow other arguments to be passed in without breaking the interface
     ) -> int:
         """
         Calculate the total repayments, :math:`N`.
