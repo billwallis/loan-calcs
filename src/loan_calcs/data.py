@@ -28,7 +28,7 @@ class RepaymentFrequency(enum.Enum):
         repayment_unit: RepaymentInterval,
         repayment_frequency: int,
         total_repayments: int,
-    ):
+    ) -> None:
         """
         Defines a repayment schedule.
 
@@ -95,7 +95,7 @@ def _decimal(round_to: int | None = None) -> Callable:
 
     def decorator(func: Callable) -> Callable:
         @functools.wraps(func)
-        def wrapper(*args, **kwargs) -> Any:
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
             if round_to is None:
                 return _to_decimal(func(*args, **kwargs))
             return _to_decimal(round(func(*args, **kwargs), round_to))
