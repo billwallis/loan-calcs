@@ -1,5 +1,4 @@
 # yaml-language-server: $schema=https://json.schemastore.org/pyproject.json
-
 [build-system]
 requires = ["setuptools"]
 build-backend = "setuptools.build_meta"
@@ -10,7 +9,7 @@ version = "0.0.0"
 description = "Library for common loan calculations."
 authors = [{name = "billwallis"}]
 readme = "README.md"
-license = {file = "LICENSE"}
+license-files = ["LICENSE"]
 requires-python = ">=3.13"
 dynamic = ["dependencies"]
 
@@ -20,8 +19,15 @@ dynamic.dependencies = {file = ["requirements.txt"]}
 
 
 [tool.pytest.ini_options]
-addopts = "--cov=src --cov-fail-under=50"
 testpaths = ["tests"]
+
+[tool.coverage]
+run.plugins = ["covdefaults"]  # https://youtu.be/70T6OxKwxm0
+report.fail_under = 60
+report.exclude_lines = [
+    "@pytest.mark.skip",
+    "@pytest.mark.xfail",
+]
 
 
 [tool.ruff]
